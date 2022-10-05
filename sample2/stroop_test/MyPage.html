@@ -1,0 +1,102 @@
+{{ block title }}
+{{ endblock }}
+{{ block content }}
+{{ formfields }}
+<style>
+    ._formfield {
+        display: none;
+    }
+
+    .table td {
+        text-align: center;
+    }
+
+    #content {
+        /*text-align: center;*/
+    }
+
+    #sequence-display {
+        text-align: center;
+        font-size: 40px;
+        font-weight: bold;
+    }
+
+
+</style>
+
+<button id="HideSubmit" type="submit" style="display: none;">Submit</button>
+
+<div class="h-100 d-flex justify-content-center align-items-center" id="content">
+    <div>
+        <div class="" style="height: 100px; width:500px">
+            <p class="" id="sequence-display"></p>
+        </div>
+        <div class="h-100 d-block justify-content-center align-items-center" id="multiple-choice"></div>
+    </div>
+</div>
+
+<script>
+    window.sequence_info_list = null;
+    window.sequenceIndex = 0;
+    window.results = [];
+    window.startTime = null;
+
+    function showNextSequence(){
+        if(window.sequenceIndex < window.sequence_info_list.length){
+            let sequenceInfo = window.sequence_info_list[window.sequenceIndex];
+            let sequence = new Array(sequenceInfo.length+1).join(sequenceInfo.character);
+            document.getElementById("sequence-display").innerHTML = sequence;
+            window.sequenceIndex++;
+            window.startTime = new Date();
+        } else {
+            liveSend({type:"result", results: results});
+            document.getElementById("HideSubmit").click();
+            window.results = [];
+        }
+    }
+    function showButtons() {
+       let max_number_of_choices = document.getElementById("id_trial_max_number_of_objects").value;
+        // Loop through all the choices and add them to the form as buttons
+        for (let i = 1; i <= max_number_of_choices; i++) {
+            let choice_button = document.createElement("button");
+            choice_button.setAttribute("type", "button");
+            choice_button.setAttribute("class", "btn btn-outline-primary");
+            choice_button.setAttribute("id", "choice_" + i);
+            choice_button.setAttribute("value", i);
+            choice_button.style.width = "500px";
+            choice_button.style.display = "block";
+            choice_button.innerHTML = i.toString();
+            choice_button.addEventListener("click", function () {
+                // Add the result to the results array
+                window.results.push({
+                    "character": sequence_info_list[window.sequenceIndex-1].character,
+                    "length": sequence_info_list[window.sequenceIndex-1].length,
+                    "response": i,
+                    "correct": i === sequence_info_list[sequenceIndex - 1].length,
+                    "reaction_time": new Date() - window.startTime
+                });
+                // Show the next sequence
+                showNextSequence();
+            });
+            document.getElementById("multiple-choice").appendChild(document.createElement("br"));
+            document.getElementById("multiple-choice").appendChild(choice_button);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        showButtons();
+        liveSend({type: 'next'});
+    })
+
+    function liveRecv(data) {
+        if (data.type === 'sequence'){
+            window.sequence_info_list = data.sequence;
+            console.log(window.sequence_info_list);
+            showNextSequence();
+        }
+    }
+</script>
+
+{{ endblock }}
+
+

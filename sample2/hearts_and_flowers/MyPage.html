@@ -1,0 +1,251 @@
+{{ block title }}
+{{ endblock }}
+
+{{ block content }}
+<style>
+    img {
+        width: 300px;
+        height: 300px;
+        display: none;
+    }
+
+
+    #flower_container {
+        width: 400px;
+        height: 300px;
+        position: fixed;
+        top: 50%;
+        right: 0;
+        transform: translate(0, -50%);
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #heart_container {
+        width: 400px;
+        height: 300px;
+        position: fixed;
+        top: 50%;
+        left: 0;
+        transform: translate(0, -50%);
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #flower_background {
+        width: 400px;
+        height: 300px;
+        position: fixed;
+        top: 50%;
+        right: 0;
+        transform: translate(0, -50%);
+        background-color: blue;
+    }
+
+    #heart_background {
+        width: 400px;
+        height: 300px;
+        position: fixed;
+        top: 50%;
+        left: 0;
+        transform: translate(0, -50%);
+        background-color: blue;
+    }
+
+    #center_point {
+        position: fixed;
+        height: 15px;
+        width: 15px;
+        background-color: black;
+        border-radius: 50%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 100;
+    }
+
+    #instruction {
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        display: flex;
+        z-index: 1000;
+        background-color: white;
+
+        align-items: center;
+        justify-content: center;
+    }
+
+    #HiddenSubmit
+    {
+        display: none;
+    }
+
+    td {
+        display: block;
+    }
+</style>
+<div id="center_point"></div>
+<div id="flower_background"></div>
+<div id="heart_background"></div>
+<div id="flower_container">
+    <img id="flower" src="{{static 'hearts_and_flowers/images/flower.png'}}" alt="Flowers"/>
+</div>
+<div id="heart_container">
+    <img id="heart" src="{{static 'hearts_and_flowers/images/heart.svg'}}" alt="Heart"/>
+</div>
+
+<div id="instruction">
+    <table>
+        <tr>
+            <td>
+                <p>Le Lorem Ipsum est simplement du faux texte employé dans la composition et la mise en page avant impression.</p>
+
+            </td>
+            <td>
+                <p>
+                quand un imprimeur anonyme assembla ensemble des morceaux de texte pour réaliser un livre spécimen de polices de texte.
+                </p>
+            </td>
+            <td>
+                <button id="Proceed" type="button">Proceed</button>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<button id="HiddenSubmit"></button>
+
+{{ formfields }}
+
+<script>
+    // Initialize
+    document.addEventListener("DOMContentLoaded", (event) => {
+        liveSend({type: 'instruct'});
+    });
+
+    window.waitingForKeypress = false;
+    window.correctKeypress = null
+    window.elapsedTime = 0;
+    window.timerHandler = null;
+
+    function showInstruction() {
+
+        document.getElementById('instruction').style.display = 'flex';
+    }
+
+    function hideInstruction() {
+        document.getElementById('instruction').style.display = 'none';
+    }
+
+    //Hide images
+    function hideBoth() {
+        document.getElementById('flower').style.display = 'none';
+        document.getElementById('heart').style.display = 'none';
+    }
+
+    // Hide flower and heart after milliseconds
+
+    function appearanceTimeout() {
+        hideBoth();
+        window.waitingForKeypress = false;
+        liveSend({type: 'next', timeout: true})
+    }
+
+    function prepareTrial(data) {
+        hideInstruction();
+        let element;
+        let container;
+        if (data.target === "flower") {
+            // show flower image and hide heart image
+            element = document.getElementById("flower");
+            element.style.display = "flex";
+            document.getElementById("heart").style.display = "none";
+
+            container = document.getElementById("flower_container");
+        } else if (data.target === "heart") {
+            // show heart image and hide flower image
+            element = document.getElementById("heart");
+            element.style.display = "flex";
+
+            document.getElementById("flower").style.display = "none";
+            container = document.getElementById("heart_container");
+        }
+
+        // Change the side of the image
+        if (data.side === "left") {
+            container.style.left = "0";
+            container.style.right = "auto";
+            window.correctKeypress = data.target === "heart" ? 'q' : 'p';
+        } else if (data.side === "right") {
+            container.style.right = "0";
+            container.style.left = "auto";
+            window.correctKeypress = data.target === "heart" ? 'p' : 'q';
+        }
+
+
+        window.waitingForKeypress = true;
+        window.startTime = Date.now();
+        console.log(data.appearance_interval)
+        window.timerHandler = setTimeout(appearanceTimeout, data.appearance_interval);
+    }
+
+    function liveRecv(data) {
+        console.log(data);
+        if (data.status !== "ok") return;
+
+        if (data.type === 'instruction') {
+            showInstruction();
+        }
+
+        if (data.type === 'submit') {
+            document.getElementById('HiddenSubmit').click();
+        }
+
+        if (data.type === "target") {
+            hideBoth()
+            setTimeout(prepareTrial, data.inter_stimuli_interval, data);
+        }
+    }
+
+    // Add a keypress listener to the document
+    document.addEventListener("keydown", (event) => {
+        console.log("press")
+
+        // Prevent default action
+        event.preventDefault();
+
+        if (!window.waitingForKeypress) return
+        window.waitingForKeypress = false;
+
+        // Reset the timeout handler
+        window.clearTimeout(window.timerHandler);
+
+        // Calculate time difference
+        let elapsedTime = Date.now() - window.startTime;
+
+        // convert to milliseconds
+        elapsedTime = elapsedTime / 1000;
+        liveSend({
+            type: 'next',
+            keypress: event.key,
+            correct: window.correctKeypress === event.key,
+            timeout: false,
+            reaction_time: elapsedTime
+        });
+
+    });
+
+    document.getElementById("Proceed").addEventListener("click", (event) => {
+        liveSend({type:'generate'})
+        hideInstruction();
+    });
+</script>
+
+{{ endblock }}
